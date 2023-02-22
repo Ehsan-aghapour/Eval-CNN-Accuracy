@@ -1,0 +1,126 @@
+\begin{figure*}
+    \begin{tikzpicture}
+    \scriptsize
+    \pgfplotsset{lineplot/.style={blue,densely dotted,mark=triangle*,sharp plot,line legend}}
+    \pgfplotsset{lineplot2/.style={red,densely dotted,mark=square*,sharp plot,line legend}}
+        \begin{axis}[
+            width  = 1.9\columnwidth,
+            height=\chartheight*1.09, 
+            ybar,
+            axis x line* = bottom,
+            axis y line* = left,
+            ylabel= {Response Time [ns]},
+            ymajorgrids = true,
+            bar width = 1mm,
+            xtick= {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21},
+            xticklabels= {bodytrack,blackscholes,canneal,dedup,fluidanimate,streamcluster,swaptions,x264,
+            barnes,cholesky,fft,lu.cont,lu.ncont, ocean.cont,ocean.ncont,radix, radiosity,raytrace,water.sq,water.nsq},
+            % xticklabels= {cholesky,radix,lu.cont,fluidanimate,barnes,
+            %           water.nsq,streamcluster,blackscholes,swaptions,                      radiosity,ocean.cont,bodytrack,fft},
+            x tick label style={font=\em, rotate=90},
+            legend columns=5,
+            legend cell align=left,
+            legend style={
+                at={(0.5,1.2)},
+                anchor=south,
+                column sep=1ex}
+            ]
+            \addplot+[fill=red!30, postaction={pattern=north west lines}] coordinates {
+                (1,531117061)
+                (2,117092679)
+                (3,2334562171)
+                (4,2193146217)
+                (5,302784526)
+                (6,658459186)
+                (7,169968416)
+                (8,212312437)
+                (9,387934505)
+                (10,102534655)
+                (11,232944107)
+                (12,96306380)
+                (13,69191279)
+                (14,849662969)
+                (15,92252529)
+                (16,31336222)
+                (17,510314423)
+                (18,799322456)
+                (19,245408457)
+                (20,478241231)
+                
+            };
+            
+                \addlegendentry{\em 3D-TTP};
+                
+                \addplot+[fill=blue!30, postaction={pattern=north east lines}] coordinates {
+                (1,584919219)
+                (2,146799092)
+                (3,2360952961)
+                (4,2362018476)
+                (5,379479846)
+                (6,771780012)
+                (7,187594141)
+                (8,238511793)
+                (9,392977653)
+                (10,111250102)
+                (11,256727700)
+                (12,105330287)
+                (13, 74009877)
+                (14,1004556527)
+                (15,94614193)
+                (16,31677787)
+                (17,527307893)
+                (18,875258089)
+                (19,281864271)
+                (20,527165309)
+
+                
+            };
+                \addlegendentry{{\em GSC-like}~\cite{donyanavard2018gain}};
+
+                \addplot+[fill=blue!30, postaction={pattern= horizontal lines}] coordinates {
+                
+                (1,583697650)
+                (2,156552911)
+                (3,2415096637)
+                (4,2247222874)
+                (5,386655839)
+                (6,751960390)
+                (7,186795289)
+                (8,250805764)
+                (9,390650047)
+                (10,109712081)
+                (11,260897401)
+                (12,109115128)
+                (13,75155052)
+                (14,977112414)
+                (15,95646834)
+                (16,31727925)
+                (17,521031025)
+                (18,873279347)
+                (19,287373303)
+                (20,521809007)
+                
+            };
+                \addlegendentry{{\em TPAVA-like}~\cite{liao2015online}};
+                \addlegendimage{lineplot}
+                \addlegendentry{Speedup compared with TPAVA-like}
+                \addlegendimage{lineplot2}
+                \addlegendentry{Speedup compared with GDC-like}
+
+        \end{axis} 
+ \begin{axis}[
+            width  = 1.9\columnwidth,
+            height=\chartheight*1.2, 
+            axis y line=right,
+            axis x line=none,
+            ymin = -1.5,
+            ymax = 35,
+            ylabel = {Speedup [\%]},
+    ]
+     \addplot [lineplot] table[x expr=\coordindex,y=Unemployement] {book.data};
+     \addplot[lineplot2] table[x expr=\coordindex,y=Unemployement] {book1.data};
+    \end{axis}
+    \end{tikzpicture}
+\caption {Response time for different benchmarks with {\em 3D-TTP}, {\em GSC-like}, and {\em TPAVA-like} on a 3D-stacked processor.}
+\label{fig:results}
+\end{figure*}
