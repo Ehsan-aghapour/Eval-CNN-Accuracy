@@ -9,26 +9,25 @@ import keras_load_img as l
 from keras.applications.resnet50 import preprocess_input
 from keras.applications.imagenet_utils import decode_predictions
 #from keras.applications import mobilenet
-
-
+import threading
 
 Input_size=224
 nh=Input_size
 nw=Input_size
 batch_size=100
 n=50000
+res={}
 
-models_dir='/home/ehsan/UvA/ARMCL/Khadas/ARMCL-Local/scripts/blobs_extractor/Working_tree/models/'
-acc_dir="/home/ehsan/UvA/ARMCL/Khadas/ARMCL-Local/scripts/blobs_extractor/Working_tree/Accuracy/"
+models_dir='/home/ehsan/Partial_Q/models/'
+acc_dir="/home/ehsan/Partial_Q/"
 img_dir=acc_dir+'/Imagenet/'
-
 #MobileNet:
 m='MobileNet/MobileNet.h5'
-
-#ResNet50:
-#m='Resnet50/ResNet50.h5'
-
 model_dir=models_dir+m
+
+
+# ResNet50:
+# m='Resnet50/ResNet50.h5'
 
 # input: image number, outout: image name (iamgenet)
 def image_name(im_n):
@@ -37,11 +36,11 @@ def image_name(im_n):
     img_name='ILSVRC2012_val_'+im_n+'.JPEG'
     return img_dir+'/ILSVRC2012_img_val/'+img_name
 
-#https://stackoverflow.com/questions/70180899/how-is-the-mobilenet-preprocess-input-in-tensorflow
-#https://github.com/keras-team/keras/blob/2c48a3b38b6b6139be2da501982fd2f61d7d48fe/keras/applications/imagenet_utils.py#L168
-#https://faroit.com/keras-docs/1.2.2/applications/
-#https://www.kaggle.com/code/ilhamk/resnet50-example-preprocessing-check/notebook
-#https://docs.w3cub.com/tensorflow~python/tf/keras/applications/resnet50/preprocess_input
+# https://stackoverflow.com/questions/70180899/how-is-the-mobilenet-preprocess-input-in-tensorflow
+# https://github.com/keras-team/keras/blob/2c48a3b38b6b6139be2da501982fd2f61d7d48fe/keras/applications/imagenet_utils.py#L168
+# https://faroit.com/keras-docs/1.2.2/applications/
+# https://www.kaggle.com/code/ilhamk/resnet50-example-preprocessing-check/notebook
+# https://docs.w3cub.com/tensorflow~python/tf/keras/applications/resnet50/preprocess_input
 
 mean = np.array([103.939, 116.779, 123.68], dtype=np.float32)
 #mean = np.array([ 104.01, 116.67, 122.68 ], dtype=np.float32)
@@ -90,11 +89,6 @@ def run_inference(image_list,model=None,_model_dir=model_dir):
     return prediction
 
 
-
-
-
-
-
 def Evaluate():
     model=keras.models.load_model(model_dir)
     f=open(model_dir.split('/')[-1]+'.csv','w')
@@ -121,6 +115,6 @@ def Evaluate():
                     f.write(',')
         #input("first batch was written\n")
         last_i=indx
-        
 
-#Evaluate()
+
+

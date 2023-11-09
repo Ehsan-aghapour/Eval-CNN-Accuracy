@@ -2,11 +2,13 @@ import sys
 
 
 def Eval():
-    prefix='/home/ehsan/UvA/ARMCL/Khadas/ARMCL-Local/scripts/blobs_extractor/Working_tree/Accuracy/Evaluation/'
+    #prefix='/home/ehsan/UvA/ARMCL/Khadas/ARMCL-Local/scripts/blobs_extractor/Working_tree/Accuracy/Evaluation/'
+    prefix='/home/ehsan/Partial_Q/Evaluation/'
 
 
     g_label_name=prefix+'Ground_labels/ground_labels.txt'
     label_name=prefix+sys.argv[1]
+    #label_name="_MobileNet.h5.csv"
     g_label_file=open(g_label_name)
     label_file=open(label_name)
 
@@ -57,3 +59,5 @@ def Eval():
 
 if __name__ == "__main__":
     Eval()
+
+
