@@ -79,6 +79,7 @@ cur_dir=os.getcwd()
 sys.path.append(cur_dir+'/../')
 import accuracy_multithread as tt
 from tensorflow.keras.preprocessing import image
+import keras
 # -
 
 
@@ -116,7 +117,7 @@ NUM_CLASSES = 1000  # Number of ImageNet classes
 image_size = (224, 224)
 N=1000
 
-RESULT_DIR=Proj_DIR+'Quantization/Res/'
+RESULT_DIR=Proj_DIR+'/Keras/Quantization/Res/'
 
 
 resdir='Yolo_files/'
@@ -150,6 +151,21 @@ if GPU:
 
 
 # +
+def main_layers(param='tensor_name'):
+    layers=[]
+    if model_name=='MobileNet.h5':
+        '''for l in model.layers:
+            if type(l)==keras.src.layers.convolutional.conv2d.Conv2D:
+                layers.append(l.name)'''
+        layer_stats = pd.read_csv(RESULTS_FILE)
+        layer_stats['original_index'] = layer_stats.index
+        #layer_stats
+        filtered_stats = layer_stats[layer_stats['op_name']=='CONV_2D']
+        main_tensors=filtered_stats[param]
+                
+    return main_tensors
+
+
 def load_model(m=ModelName):
     model = tf.keras.models.load_model(m)
     return model
@@ -487,15 +503,10 @@ def generate_indexes(start_conv=-1,end_conv=-1):
     ####
     layer_stats = pd.read_csv(RESULTS_FILE)
     all_layers=list(layer_stats[:]['tensor_name'])
-    conv_layers=[]
-    for i,layer in enumerate(all_layers):
-        if 'conv' in layer or 'StatefulPartitionedCall' in layer:
-            conv_layers.append(layer)
+    print(all_layers)
+    conv_layers=main_layers().tolist()
             
     _n=len(conv_layers)
-    #cases=[ [ conv_layers[start:end+1] for end in range(start,_n) ] for start in range(0,_n) ]
-    #n_cases = [len(case) for case in cases ]
-    #N_cases = sum(n_cases)
     cases=[  list(range(start,end+1))  for start in range(0,_n) for end in range(start,_n)]
     N_cases = len(cases)
     print(f'Total layers:{len(all_layers)}  Convs:{len(conv_layers)}  number of cases:{N_cases}')
@@ -532,9 +543,10 @@ def run():
         i=len(df)
         print(f'Continue {dffile} from index {i}')
     else:
-        response=input("Do you want to reset df.csv? yes/*   ")
+        #response=input("Do you want to reset df.csv? yes/*   ")
+        response="yes"
         if response=="yes" or response=="Yes":
-            df = pd.DataFrame(columns=["name","mAP"])
+            df = pd.DataFrame(columns=["name","top1","top5"])
         else:
             return
         
@@ -543,7 +555,8 @@ def run():
             Data=pickle.load(f)
         print(f'{pklDatafile} is loaded')
     else:
-        response=input("Do you want to reset DataResults.pkl? yes/*   ")
+        #response=input("Do you want to reset df.csv? yes/*   ")
+        response="yes"
         if response=="yes" or response=="Yes":
             Data=[]
         else:
@@ -558,6 +571,11 @@ def run():
         print(f'quantizing conv layers from {c[2]} to {c[3]}')
         print(f'index {c[4]} to {c[5]}')  
         _name=f'{c[2]}-{c[3]}'
+        if df[df['name']==_name].shape[0]:
+            print("Already evaluated...")
+            continue
+        _name=_name.replace(' ','')
+        
         if df[df['name']==_name].shape[0]:
             print("Already evaluated...")
             continue
@@ -591,17 +609,10 @@ def generate_indexes_2(start_conv=-1,end_conv=-1):
     ####
     layer_stats = pd.read_csv(RESULTS_FILE)
     all_layers=list(layer_stats[:]['tensor_name'])
-    conv_layers=[]
-    #print(all_layers)
-    for i,layer in enumerate(all_layers):
-        if 'conv' in layer or 'StatefulPartitionedCall' in layer:
-            conv_layers.append(layer)
+    print(all_layers)
+    conv_layers=main_layers().tolist()
             
     _n=len(conv_layers)
-    #cases=[ [ conv_layers[start:end+1] for end in range(start,_n) ] for start in range(0,_n) ]
-    #n_cases = [len(case) for case in cases ]
-    #N_cases = sum(n_cases)
-    #cases = list(itertools.combinations(conv_layers, 2))
     _convs=list(range(len(conv_layers)))
     cases=list(itertools.combinations(_convs, 1))
     cases+=list(itertools.combinations(_convs, 2))
@@ -661,14 +672,15 @@ def run_2():
         i=len(df)
         print(f'Continue {dffile} from index {i}')
     else:
-        response=input("Do you want to reset df.csv? yes/*   ")
+        #response=input("Do you want to reset df.csv? yes/*   ")
+        response="yes"
         if response=="yes" or response=="Yes":
-            df = pd.DataFrame(columns=["name","mAP"])
+            df = pd.DataFrame(columns=["name","top1","top5"])
         else:
             return
         
     
-    extracted_df=extract_one_two_from_consequtives()
+    #extracted_df=extract_one_two_from_consequtives()
     
     for c in generate_indexes_2():
         
@@ -679,14 +691,13 @@ def run_2():
         if df[df['name']==_name].shape[0]:
             print("Already evaluated...")
             continue
-            
+        _name=_name.replace(' ','')
         
-        if extracted_df[extracted_df['layers'].astype(str)==_name].shape[0]:
-            mAP=extracted_df[extracted_df['layers'].astype(str)==_name]['mAP'].iloc[0]
-            df.loc[c[0]]=[_name,mAP]
-            df.to_csv(dffile)
-            print('extract')
+        if df[df['name']==_name].shape[0]:
+            print("Already evaluated...")
             continue
+            
+       
         
         
         m_name=output+_name+'.tflite'
@@ -697,12 +708,12 @@ def run_2():
         end_time=time.time()
         print(f"{m_name} Quantization finished time: {end_time-start_time}")
         
-        mAP,APs=evaluate(model_name=m_name,pkl_name=p_name)
+        top1,top5=evaluate(model_name=m_name,pkl_name=p_name)
         end_time=time.time()
         print(f"{m_name} Evaluation finished time: {end_time-start_time}")
         
         os.remove(m_name)
-        df.loc[c[0]]=[_name,mAP]
+        df.loc[len(df)]=[_name,top1,top5]
         
         if c[0]%5==0 or True:
             df.to_csv(dffile)
@@ -715,20 +726,13 @@ def generate_indexes_3(start_conv=-1,end_conv=-1):
     ####
     layer_stats = pd.read_csv(RESULTS_FILE)
     all_layers=list(layer_stats[:]['tensor_name'])
-    conv_layers=[]
-    #print(all_layers)
-    for i,layer in enumerate(all_layers):
-        if 'conv' in layer or 'StatefulPartitionedCall' in layer:
-            conv_layers.append(layer)
+    print(all_layers)
+    conv_layers=main_layers().tolist()
             
     _n=len(conv_layers)
-    #cases=[ [ conv_layers[start:end+1] for end in range(start,_n) ] for start in range(0,_n) ]
-    #n_cases = [len(case) for case in cases ]
-    #N_cases = sum(n_cases)
-    #cases = list(itertools.combinations(conv_layers, 2))
+    
     _convs=list(range(len(conv_layers)))
-    #cases=list(itertools.combinations(_convs, 1))
-    #cases+=list(itertools.combinations(_convs, 2))
+    
     cases=list(itertools.combinations(_convs, 3))
     N_cases = len(cases)
     print(f'Total layers:{len(all_layers)}  Convs:{len(conv_layers)}  number of cases:{N_cases}')
@@ -765,14 +769,15 @@ def run_3():
         i=len(df)
         print(f'Continue {dffile} from index {i}')
     else:
-        response=input(f"Do you want to reset {dffile}? yes/*   ")
+        #response=input(f"Do you want to reset {dffile}? yes/*   ")
+        response="yes"
         if response=="yes" or response=="Yes":
-            df = pd.DataFrame(columns=["name","mAP"])
+            df = pd.DataFrame(columns=["name","top1","top5"])
         else:
             return
         
     
-    extracted_df=extract_one_two_from_consequtives()
+    #extracted_df=extract_one_two_from_consequtives()
     
     for c in generate_indexes_3():
         
@@ -783,14 +788,19 @@ def run_3():
         if df[df['name']==_name].shape[0]:
             print("Already evaluated...")
             continue
+        _name=_name.replace(' ','')
+        
+        if df[df['name']==_name].shape[0]:
+            print("Already evaluated...")
+            continue
             
         
-        if extracted_df[extracted_df['layers'].astype(str)==_name].shape[0]:
+        '''if extracted_df[extracted_df['layers'].astype(str)==_name].shape[0]:
             mAP=extracted_df[extracted_df['layers'].astype(str)==_name]['mAP'].iloc[0]
             df.loc[c[0]]=[_name,mAP]
             df.to_csv(dffile)
             print('extract')
-            continue
+            continue'''
         
         
         m_name=output+_name+'.tflite'
@@ -801,12 +811,12 @@ def run_3():
         end_time=time.time()
         print(f"{m_name} Quantization finished time: {end_time-start_time}")
         
-        mAP,APs=evaluate(model_name=m_name,pkl_name=p_name)
+        top1,top5=evaluate(model_name=m_name,pkl_name=p_name)
         end_time=time.time()
         print(f"{m_name} Evaluation finished time: {end_time-start_time}")
         
         os.remove(m_name)
-        df.loc[c[0]]=[_name,mAP]
+        df.loc[len(df)]=[_name,top1,top5]
         
         if c[0]%5==0 or True:
             df.to_csv(dffile)
@@ -816,26 +826,25 @@ def generate_indexes_0():
     ####
     layer_stats = pd.read_csv(RESULTS_FILE)
     all_layers=list(layer_stats[:]['tensor_name'])
-    conv_layers=[]
-    #print(all_layers)
-    for i,layer in enumerate(all_layers):
-        if 'conv' in layer or 'StatefulPartitionedCall' in layer:
-            conv_layers.append(layer)
+    print(all_layers)
+    conv_layers=main_layers().tolist()
             
     _n=len(conv_layers)
-    cases=list(np.zeros(_n))
-    cases+=list(np.ones(_n))
+    fully_precision=np.zeros(_n,dtype=int)
+    fully_quantized=np.ones(_n,dtype=int)
+    cases=[np.where(fully_precision == 1)[0]]
+    cases+=[np.where(fully_quantized == 1)[0]]
     N_cases = len(cases)
     print(f'Total layers:{len(all_layers)}  Convs:{len(conv_layers)}  number of cases:{N_cases}')
     #flatted_cases=[c for case in cases for c in case]
     last_conv_indx=len(conv_layers)-1
     last_conv=conv_layers[-1]
-    random.shuffle(cases)
+    #random.shuffle(cases)
     for i,case in enumerate(cases):
         print(f'case:\n{case}')
         suspend=all_layers[:]
         quant=[]
-        for layer in case:           
+        for layer in case:      
             start_index=all_layers.index(conv_layers[layer])
             if layer==last_conv_indx:
                 end_index=len(all_layers)-1
@@ -865,9 +874,10 @@ def run_0():
         i=len(df)
         print(f'Continue {dffile} from index {i}')
     else:
-        response=input(f"Do you want to reset {dffile}? yes/*   ")
+        #response=input(f"Do you want to reset {dffile}? yes/*   ")
+        response="yes"
         if response=="yes" or response=="Yes":
-            df = pd.DataFrame(columns=["name","mAP"])
+            df = pd.DataFrame(columns=["name","top1","top5"])
         else:
             return
         
@@ -882,17 +892,14 @@ def run_0():
         if df[df['name']==_name].shape[0]:
             print("Already evaluated...")
             continue
-            
+        _name=_name.replace(' ','')
         
-        if extracted_df[extracted_df['layers'].astype(str)==_name].shape[0]:
-            mAP=extracted_df[extracted_df['layers'].astype(str)==_name]['mAP'].iloc[0]
-            df.loc[c[0]]=[_name,mAP]
-            df.to_csv(dffile)
-            print('extract')
+        if df[df['name']==_name].shape[0]:
+            print("Already evaluated...")
             continue
         
-        
         m_name=output+_name+'.tflite'
+        
         p_name=_name+'.pkl'
         
         start_time=time.time()
@@ -900,12 +907,12 @@ def run_0():
         end_time=time.time()
         print(f"{m_name} Quantization finished time: {end_time-start_time}")
         
-        mAP,APs=evaluate(model_name=m_name,pkl_name=p_name)
+        top1,top5=evaluate(model_name=m_name,pkl_name=p_name)
         end_time=time.time()
         print(f"{m_name} Evaluation finished time: {end_time-start_time}")
         
-        os.remove(m_name)
-        df.loc[c[0]]=[_name,mAP]
+        #os.remove(m_name)
+        df.loc[len(df)]=[_name,top1,top5]
         
         if c[0]%5==0 or True:
             df.to_csv(dffile)
@@ -913,12 +920,8 @@ def run_0():
 def generate_indexes_MontCarlo(Num_points=4000):
     layer_stats = pd.read_csv(RESULTS_FILE)
     all_layers=list(layer_stats[:]['tensor_name'])
-    conv_layers=[]
-    #print(all_layers)
-    for i,layer in enumerate(all_layers):
-        if 'conv' in layer or 'StatefulPartitionedCall' in layer:
-            conv_layers.append(layer)
-            
+    print(all_layers)
+    conv_layers=main_layers().tolist()
     _n=len(conv_layers)
     _convs=list(range(len(conv_layers)))
 
@@ -938,9 +941,9 @@ def generate_indexes_MontCarlo(Num_points=4000):
     last_conv=conv_layers[-1]
     #random.shuffle(cases)
     #for i,case in enumerate(cases):
-    sequences=[np.ones(75, dtype=int), np.zeros(75, dtype=int)]
+    sequences=[np.ones(_n, dtype=int), np.zeros(_n, dtype=int)]
     for i in range(Num_points):
-        binary_sequence = np.random.randint(2, size=75)
+        binary_sequence = np.random.randint(2, size=_n)
     #for i,binary_sequence in enumerate(sequences):
         #
         # Find the indices where the value is 1
@@ -976,9 +979,10 @@ def run_MontCarlo(_Num_points=4000):
         i=len(df)
         print(f'Continue {dffile} from index {i}')
     else:
-        response=input(f"Do you want to reset {dffile}? yes/*   ")
+        #response=input(f"Do you want to reset {dffile}? yes/*   ")
+        response="yes"
         if response=="yes" or response=="Yes":
-            df = pd.DataFrame(columns=["name","mAP"])
+            df = pd.DataFrame(columns=["name","top1","top5"])
         else:
             return
         
@@ -1010,20 +1014,97 @@ def run_MontCarlo(_Num_points=4000):
         end_time=time.time()
         print(f"{m_name} Quantization finished time: {end_time-start_time}")
         
-        mAP,APs=evaluate(model_name=m_name,pkl_name=p_name)
+        top1,top5=evaluate(model_name=m_name,pkl_name=p_name)
         end_time=time.time()
         print(f"{m_name} Evaluation finished time: {end_time-start_time}")
         
         os.remove(m_name)
         #df.loc[c[0]]=[_name,mAP]
-        df.loc[len(df)]=[_name,mAP]
+        df.loc[len(df)]=[_name,top1,top5]
         
         if c[0]%5==0 or True:
             df.to_csv(dffile)
 
         
+# -
+def generate_paritial_q(cases):
+    output=os.getcwd()+"/cases/"
+    os.makedirs(output, exist_ok=True)
+        
+    cntr=0
+    
+    layer_stats = pd.read_csv(RESULTS_FILE)
+    all_layers=list(layer_stats[:]['tensor_name'])
+    #print(all_layers)
+    conv_layers=main_layers().tolist()
+    _n=len(conv_layers)
+    _convs=list(range(len(conv_layers)))
+
+    print(f'Total layers:{len(all_layers)}  Convs:{len(conv_layers)}')
+    #flatted_cases=[c for case in cases for c in case]
+    last_conv_indx=len(conv_layers)-1
+    last_conv=conv_layers[-1]
+    
+    for c in cases:
+        
+        print("\n\n\n*****************\n\n\n")
+        print(f'quantizing conv layers {c}')
+        _name=f'{tuple(c)}'
+        _name=_name.replace(' ','')
+        m_name=output+_name+'.tflite'
+        p_name=_name+'.pkl'
+        
+        
+        suspend=all_layers[:]
+        quant=[]
+        for layer in case:           
+            start_index=all_layers.index(conv_layers[layer])
+            if layer==last_conv_indx:
+                end_index=len(all_layers)-1
+            else:
+                end_index=all_layers.index(conv_layers[layer+1])
+            block=[all_layers[j] for j in range(start_index,end_index)]
+            quant+=block
+        print(quant)         
+        suspend=[elem for elem in all_layers if elem not in quant]
+        print(len(quant),len(suspend),len(all_layers))
+        
+        start_time=time.time()
+        explore_combinations2(calibrated_model,suspected_layers=suspend,name=m_name)
+        end_time=time.time()
+        print(f"{m_name} Quantization finished time: {end_time-start_time}")
+        
+        '''top1,top5=evaluate(model_name=m_name,pkl_name=p_name)
+        end_time=time.time()
+        print(f"{m_name} Evaluation finished time: {end_time-start_time}")'''
+        print(f'scp ehsan@145.100.131.30:{m_name}  /home/ehsan/UvA/Accuracy/Keras/Quantization/cases/\n')
+        print(f'scp -r ehsan@145.100.131.30:{output}  /home/ehsan/UvA/Accuracy/Keras/Quantization/cases/\n\n')
+        #os.remove(m_name)
+        #df.loc[c[0]]=[_name,mAP]
+        #df.loc[len(df)]=[_name,top1,top5]
+        
+        '''if c[0]%5==0 or True:
+            df.to_csv(dffile)'''
+
+
 # +
-                
+def parse_number_sequence(input_str):
+    numbers = []
+    if input_str=="":
+        return numbers
+    # Split the input string by comma to separate individual numbers and ranges
+    parts = input_str.split(',')
+    for part in parts:
+        if '-' in part:
+            # It's a range
+            start, end = part.split('-')
+            numbers.extend(range(int(start), int(end) + 1))
+        else:
+            # It's a single number
+            numbers.append(int(part))
+
+    return numbers
+               
 
 # # # # +
 # # # # # +
@@ -1032,19 +1113,36 @@ def run_MontCarlo(_Num_points=4000):
 ### and run_2 is for select two layer quantization
 ## and run_3 for three layers
 ## and for Montecarlo
+test_partial_q=False
 if __name__ == "__main__":
     initialize()
-    if os.path.isfile(RESULTS_FILE):
-        run_0()
-        #run()
-        #run_2()
-        #run_3()
-        run_MontCarlo(_Num_points=6000)
-    else:
+    if not os.path.isfile(RESULTS_FILE):
         quantized_model=quantize(model,dataset)
         debugger=explore(model,dataset)
         run_debugger(debugger,RESULTS_FILE)
+        
+    if test_partial_q:
+        layers=main_layers(['op_name','tensor_name'])
+        print(layers.reset_index(drop=False))
+        #print(len(layers))
+        # Prompt the user to input a series of numbers, separated by spaces
+        user_input = input("Enter a series of numbers, separated by comma: ")
+        while(user_input!="end"):
+            case = parse_number_sequence(user_input)
+            print("You entered the numbers:", case)
+            generate_paritial_q([case])
+            # Prompt the user to input a series of numbers, separated by spaces
+            user_input = input("Enter a series of numbers, separated by comma (end for finish): ")
+        
+
+    else:
+        run_0()
+        run_MontCarlo(_Num_points=10)
         run_2()
+        run_3()
+        run_MontCarlo(_Num_points=6000)
+        
+
 # + endofcell="--------"
 # # # # + endofcell="-----"
 # # # # # # +
@@ -1223,11 +1321,5 @@ def ttt():
 # -------
 
 
-a=list(range(10))
-import itertools
-cases=list(itertools.combinations(a, 1))
-cases+=list(itertools.combinations(a, 2))
-cases
+
 # --------
-
-
