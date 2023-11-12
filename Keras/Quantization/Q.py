@@ -160,7 +160,12 @@ def main_layers(param='tensor_name'):
         layer_stats = pd.read_csv(RESULTS_FILE)
         layer_stats['original_index'] = layer_stats.index
         #layer_stats
-        filtered_stats = layer_stats[layer_stats['op_name']=='CONV_2D']
+        
+        #this will start layers with pointwise (first run was with this):
+        ##filtered_stats = layer_stats[layer_stats['op_name']=='CONV_2D']
+        
+        #this will start layers with depthwise:
+        filtered_stats = layer_stats.iloc[[0,2,4,7,9,12,14,17,19,21,23,25,27,30]]
         main_tensors=filtered_stats[param]
                 
     return main_tensors
@@ -707,12 +712,13 @@ def run_2():
         explore_combinations2(calibrated_model,suspected_layers=c[-1],name=m_name)
         end_time=time.time()
         print(f"{m_name} Quantization finished time: {end_time-start_time}")
-        
+        print(len(c[2]))
         top1,top5=evaluate(model_name=m_name,pkl_name=p_name)
         end_time=time.time()
         print(f"{m_name} Evaluation finished time: {end_time-start_time}")
         
-        os.remove(m_name)
+        if len(c[2])>1:
+            os.remove(m_name)
         df.loc[len(df)]=[_name,top1,top5]
         
         if c[0]%5==0 or True:
@@ -1137,7 +1143,7 @@ if __name__ == "__main__":
 
     else:
         run_0()
-        run_MontCarlo(_Num_points=10)
+        #run_MontCarlo(_Num_points=10)
         run_2()
         run_3()
         run_MontCarlo(_Num_points=6000)
