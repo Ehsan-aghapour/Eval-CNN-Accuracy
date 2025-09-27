@@ -3,7 +3,8 @@ import sys
 
 def Eval():
     #prefix='/home/ehsan/UvA/ARMCL/Khadas/ARMCL-Local/scripts/blobs_extractor/Working_tree/Accuracy/Evaluation/'
-    prefix='/home/ehsan/Partial_Q/Evaluation/'
+    #prefix='/home/ehsan/Partial_Q/Evaluation/'
+    prefix="./"
 
 
     g_label_name=prefix+'Ground_labels/ground_labels.txt'
